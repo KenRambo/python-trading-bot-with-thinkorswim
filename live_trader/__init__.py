@@ -88,7 +88,7 @@ class LiveTrader(Tasks):
                                       "childOrderStrategies": [
                                                               {"orderStrategyType": "SINGLE",
                                                               "session": "NORMAL",
-                                                              "duration": "GOOD_TILL_CANCEL" if asset_type == "EQUITY" else "DAY",
+                                                              "duration": "GOOD_TILL_CANCEL"
                                                               "orderType": "LIMIT",
                                                               "price": None,
                                                               "orderLegCollection": [{
@@ -99,7 +99,7 @@ class LiveTrader(Tasks):
                                                                                                 "symbol": symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"], }}]},
                                                               {"orderStrategyType": "SINGLE",
                                                               "session": "NORMAL",
-                                                              "duration": "GOOD_TILL_CANCEL" if asset_type == "EQUITY" else "DAY",
+                                                              "duration": "GOOD_TILL_CANCEL",
                                                               "orderType": "STOP",
                                                               "stopPrice": None,
                                                               "orderLegCollection": [{
