@@ -18,6 +18,39 @@ class SimTrader():
 
         self.closed_positions = self.db["closed_positions"]
 
+    def testCustomOrder(self, symbol):
+
+        try:
+
+            strategy = symbol["Strategy"]
+
+            symbol = symbol["Symbol"]
+
+            resp = self.tdameritrade.getQuote(symbol)
+
+            price = float(resp[symbol]["lastPrice"])
+
+            shares = 1
+
+            obj = {
+                "Symbol": symbol,
+                "Qty": shares,
+                "Buy_Price": price,
+                "Date": getDatetime(),
+                "Strategy": strategy
+            }
+
+            # ADD TO OPEN POSITIONS
+            self.open_positions.insert_one(obj)
+
+            # print("testCustomOrder")
+            # pprint(obj)
+
+        except Exception as e:
+
+            print("SIM TRADER - testCustomOrder", e)
+
+
     def buyOrder(self, symbol):
 
         try:
@@ -132,6 +165,12 @@ class SimTrader():
                     if not open_position:
                         
                         self.buyOrder(row)
+
+                elif side == "TEST_TSLA_OCO":
+
+                    if open_position:
+
+                        self.testCustomOrder(row, open_position)
 
                 elif side == "SELL":
 
