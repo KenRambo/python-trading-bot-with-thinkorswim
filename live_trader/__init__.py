@@ -69,91 +69,75 @@ class LiveTrader(Tasks):
 
             asset_type = "EQUITY"
 
-        # order = {
-        #           "orderStrategyType": "TRIGGER",
-        #           "session": "NORMAL",
-        #           "duration": "DAY",
-        #           "orderType": "MARKET",
-        #           # "price": 795,
-        #           "orderLegCollection": [
-        #             {
-        #               "instruction": "BUY",
-        #               "quantity": 1,
-        #               "instrument": {
-        #                 "assetType": "EQUITY",
-        #                 "symbol": symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"]
-        #               }
-        #             }
-        #           ],
-        #           "childOrderStrategies": [
-        #             {
-        #               "orderStrategyType": "OCO",
-        #               "childOrderStrategies": [
-        #                 {
-        #                   "orderStrategyType": "SINGLE",
-        #                   "session": "NORMAL",
-        #                   "duration": "GOOD_TILL_CANCEL",
-        #                   "orderType": "LIMIT",
-        #                   "stopPriceLinkBasis": "MARK",
-        #                   "stopPriceLinkType": "VALUE",
-        #                   "stopPriceOffset": 10,
-        #                   "orderLegCollection": [
-        #                     {
-        #                       "instruction": "SELL",
-        #                       "quantity": 1,
-        #                       "instrument": {
-        #                         "assetType": "EQUITY",
-        #                         "symbol": symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"]
-        #                       }
-        #                     }
-        #                   ]
-        #                 },
-        #                 {
-        #                   "orderStrategyType": "SINGLE",
-        #                   "session": "NORMAL",
-        #                   "duration": "GOOD_TILL_CANCEL",
-        #                   "orderType": "STOP",
-        #                   "stopPriceLinkBasis": "MARK",
-        #                   "stopPriceLinkType": "VALUE",
-        #                   "stopPriceOffset": 10,
-        #                   "orderLegCollection": [
-        #                     {
-        #                       "instruction": "SELL",
-        #                       "quantity": 1,
-        #                       "instrument": {
-        #                         "assetType": "EQUITY",
-        #                         "symbol": symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"]
-        #                        }
-        #                     }
-        #                   ]
-        #                 }
-        #               ]
-        #             }
-        #           ]
-        #         }
+        #Custom code for OCO orders
+        order =   {
+                  "orderStrategyType": "TRIGGER",
+                  "session": "NORMAL",
+                  "duration": "GOOD_TILL_CANCEL" if asset_type == "EQUITY" else "DAY",
+                  "orderType": "LIMIT",
+                  "price": None,
+                  "orderLegCollection": [{
+                                      "instruction": side,
+                                      "quantity": None,
+                                      "instrument": {
+                                                    "assetType": asset_type,
+                                                    "symbol": symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"] }
+                                        }],
+                  "childOrderStrategies": [{
+                                      "orderStrategyType": "OCO",
+                                      "childOrderStrategies": [
+                                                              {"orderStrategyType": "SINGLE",
+                                                              "session": "NORMAL",
+                                                              "duration": "GOOD_TILL_CANCEL" if asset_type == "EQUITY" else "DAY",
+                                                              "orderType": "LIMIT",
+                                                              "price": None,
+                                                              "orderLegCollection": [{
+                                                                                  "instruction": "SELL" if asset_type == "EQUITY" else "SELL_TO_CLOSE",
+                                                                                  "quantity": None,
+                                                                                  "instrument": {
+                                                                                                "assetType": asset_type,
+                                                                                                "symbol": symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"], }}]},
+                                                              {"orderStrategyType": "SINGLE",
+                                                              "session": "NORMAL",
+                                                              "duration": "GOOD_TILL_CANCEL" if asset_type == "EQUITY" else "DAY",
+                                                              "orderType": "STOP",
+                                                              "stopPrice": None,
+                                                              "orderLegCollection": [{
+                                                                                      "instruction": "SELL" if asset_type == "EQUITY" else "SELL_TO_CLOSE",
+                                                                                      "quantity": None,
+                                                                                      "instrument": {
+                                                                                                    "assetType": asset_type,
+                                                                                                    "symbol": symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"], }
+                                                                                    }]
+                                                              }
+                                                              ]
+                                          }]
+                  }
+                  #/customer OCO order code
 
-        order = {
-            "orderType": "LIMIT",
-            "price": None,
-            "session": "SEAMLESS" if asset_type == "EQUITY" else "NORMAL",
-            "duration": "GOOD_TILL_CANCEL" if asset_type == "EQUITY" else "DAY",
-            "orderStrategyType": "SINGLE",
-            "orderLegCollection": [
-                {
-                    "instruction": side,
-                    "quantity": None,
-                    "instrument": {
-                        "symbol": symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"],
-                        "assetType": asset_type,
-                    }
-                }
-            ]
-        }
+        #default order code commented out for now
+        # order = {
+        #     "orderType": "LIMIT",
+        #     "price": None,
+        #     "session": "SEAMLESS" if asset_type == "EQUITY" else "NORMAL",
+        #     "duration": "GOOD_TILL_CANCEL" if asset_type == "EQUITY" else "DAY",
+        #     "orderStrategyType": "SINGLE",
+        #     "orderLegCollection": [
+        #         {
+        #             "instruction": side,
+        #             "quantity": None,
+        #             "instrument": {
+        #                 "symbol": symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"],
+        #                 "assetType": asset_type,
+        #             }
+        #         }
+        #     ]
+        # }
 
         obj = {
             "Symbol": symbol,
             "Qty": None,
-            "Position_Size": 250,
+            "Position_Size": None,
             "Date": getDatetime(),
             "Strategy": strategy,
             "Trader": self.user["Name"],
@@ -176,7 +160,7 @@ class LiveTrader(Tasks):
 
         position_size = None
 
-        if side == "BUY" or side == "BUY_TO_OPEN":
+        if side == "BUY" or side == "BUY_TO_OPEN" and:
 
             resp = self.tdameritrade.getQuote(
                 symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"])
@@ -185,6 +169,17 @@ class LiveTrader(Tasks):
                 resp[symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"]]["bidPrice"])
 
             order["price"] = round(price, 2) if price >= 1 else round(price, 4)
+
+            #Code for OCO orders
+            stop_price = (price*0.8)
+
+            take_profit_price = (price*1.3)
+
+            order["childOrderStrategies"][0]["childOrderStrategies"][0]["price"] = round(take_profit_price, 2) if price >= 1 else round(take_profit_price, 2)
+
+            order["childOrderStrategies"][0]["childOrderStrategies"][1]["stopPrice"] = round(stop_price, 2) if price >= 1 else round(stop_price, 2)
+
+            #/code for OCO orders
 
             # GET SHARES FOR PARTICULAR STRATEGY
             strategies = self.user["Accounts"][str(
