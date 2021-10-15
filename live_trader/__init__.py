@@ -92,7 +92,7 @@ class LiveTrader(Tasks):
                   "session": "NORMAL",
                   "orderType": "TRAILING_STOP",
                   "stopPriceLinkBasis": "MARK",
-                  "stopPriceLinkType": "PERCENT",
+                  "stopPriceLinkType": "VALUE",
                   "stopPriceOffset": None,
                   "duration": "GOOD_TILL_CANCEL" if asset_type == "EQUITY" else "DAY",
                   "orderStrategyType": "SINGLE",
@@ -213,7 +213,7 @@ class LiveTrader(Tasks):
             order["price"] = round(price, 2) if price >= 1 else round(price, 4)
 
             #Code for OCO orders
-            trail_stop = 30
+            trail_stop = (price*.3)
             #stop_price = (price*0.7)
 
             #take_profit_price = (price*1.3)
