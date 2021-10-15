@@ -38,8 +38,10 @@ class Tasks:
         self.users.update_one({"Name": self.user["Name"]}, {"$set": {
             f"Accounts.{self.account_id}.Account_Balance": liquidation_value}})
 
-        self.users.update_one({"Name": self.user["Name"]}, {"$set": {
-            f"Accounts.{self.account_id}.Position_Size": dynamic_position_size}})
+        for strategy in self.user["Accounts"][str(self.account_id)]["Strategies"]:
+
+            self.users.update_many({"Name": self.user["Name"]}, {"$set": {
+            f"Accounts.{self.account_id}.Strategies.{strategy}.Position_Size": dynamic_position_size}})
 
 
     @exception_handler
