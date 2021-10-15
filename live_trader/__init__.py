@@ -202,6 +202,12 @@ class LiveTrader(Tasks):
 
                 order["orderLegCollection"][0]["quantity"] = shares
 
+                #Custom OCO code
+                order["childOrderStrategies"][0]["childOrderStrategies"][0]["orderLegCollection"][0]["quantity"] = shares
+
+                order["childOrderStrategies"][0]["childOrderStrategies"][1]["orderLegCollection"][0]["quantity"] = shares
+                #End Custom OCO code
+                
                 obj["Qty"] = shares
 
                 obj["Position_Size"] = position_size
