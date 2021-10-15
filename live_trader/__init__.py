@@ -70,22 +70,82 @@ class LiveTrader(Tasks):
             asset_type = "EQUITY"
 
         order = {
-            "orderType": "LIMIT",
-            "price": None,
-            "session": "SEAMLESS" if asset_type == "EQUITY" else "NORMAL",
-            "duration": "GOOD_TILL_CANCEL" if asset_type == "EQUITY" else "DAY",
-            "orderStrategyType": "SINGLE",
-            "orderLegCollection": [
-                {
-                    "instruction": side,
-                    "quantity": None,
-                    "instrument": {
-                        "symbol": symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"],
-                        "assetType": asset_type,
+                  "orderStrategyType": "TRIGGER",
+                  "session": "NORMAL",
+                  "duration": "DAY",
+                  "orderType": "LIMIT",
+                  "price": 795,
+                  "orderLegCollection": [
+                    {
+                      "instruction": "BUY",
+                      "quantity": 1,
+                      "instrument": {
+                        "assetType": "EQUITY",
+                        "symbol": "TSLA"
+                      }
                     }
+                  ],
+                  "childOrderStrategies": [
+                    {
+                      "orderStrategyType": "OCO",
+                      "childOrderStrategies": [
+                        {
+                          "orderStrategyType": "SINGLE",
+                          "session": "NORMAL",
+                          "duration": "GOOD_TILL_CANCEL",
+                          "orderType": "LIMIT",
+                          "price": 800,
+                          "orderLegCollection": [
+                            {
+                              "instruction": "SELL",
+                              "quantity": 1,
+                              "instrument": {
+                                "assetType": "EQUITY",
+                                "symbol": "TSLA"
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "orderStrategyType": "SINGLE",
+                          "session": "NORMAL",
+                          "duration": "GOOD_TILL_CANCEL",
+                          "orderType": "STOP",
+                          "stopPrice": 790,
+                          "orderLegCollection": [
+                            {
+                              "instruction": "SELL",
+                              "quantity": 1,
+                              "instrument": {
+                                "assetType": "EQUITY",
+                                "symbol": "TSLA" 
+                               }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
                 }
-            ]
-        }
+
+        #Commenting out for now to test OCO Template
+        # order = {
+        #     "orderType": "LIMIT",
+        #     "price": None,
+        #     "session": "SEAMLESS" if asset_type == "EQUITY" else "NORMAL",
+        #     "duration": "GOOD_TILL_CANCEL" if asset_type == "EQUITY" else "DAY",
+        #     "orderStrategyType": "SINGLE",
+        #     "orderLegCollection": [
+        #         {
+        #             "instruction": side,
+        #             "quantity": None,
+        #             "instrument": {
+        #                 "symbol": symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"],
+        #                 "assetType": asset_type,
+        #             }
+        #         }
+        #     ]
+        # }
 
         obj = {
             "Symbol": symbol,
