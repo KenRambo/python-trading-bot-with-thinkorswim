@@ -72,37 +72,43 @@ class LiveTrader(Tasks):
         
         #30% trailing stop code
         order =   {
-                  "orderStrategyType": "TRIGGER",
-                  "session": "NORMAL",
-                  "duration": "GOOD_TILL_CANCEL" if asset_type == "EQUITY" else "DAY",
-                  "orderType": "LIMIT",
-                  "price": None,
-                  "orderLegCollection": [{
-                                      "instruction": side,
-                                      "quantity": None,
-                                      "instrument": {
-                                                    "assetType": asset_type,
-                                                    "symbol": symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"] }
-                                        }],
-                  "childOrderStrategies": [{
-                                      "orderStrategyType": "OCO",
-                                      "childOrderStrategies": [
-                                                              {"orderStrategyType": "SINGLE",
-                                                              "session": "NORMAL",
-                                                              "duration": "GOOD_TILL_CANCEL" if asset_type == "EQUITY" else "DAY",
-                                                              "orderType": "TRAILING_STOP",
-                                                              "stopPriceLinkBasis": "BID",
-                                                              "stopPriceLinkType": "PERCENT",
-                                                              "stopPriceOffset": None,
-                                                              "orderLegCollection": [{
-                                                                                  "instruction": "SELL" if asset_type == "EQUITY" else "SELL_TO_CLOSE",
-                                                                                  "quantity": None,
-                                                                                  "instrument": {
-                                                                                                "assetType": asset_type,
-                                                                                                "symbol": symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"], }}]},
-                                                              ]
-                                          }]
+              "orderType": "LIMIT",
+              "session": "NORMAL",
+              "price": None,
+              "duration": "GOOD_TILL_CANCEL" if asset_type == "EQUITY" else "DAY",
+              "orderStrategyType": "TRIGGER",
+              "orderLegCollection": [
+                {
+                  "instruction": side,
+                  "quantity": None,
+                  "instrument": {
+                    "symbol": symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"],
+                    "assetType": asset_type
                   }
+                }
+              ],
+              "childOrderStrategies": [
+                {
+                  "session": "NORMAL",
+                  "orderType": "TRAILING_STOP",
+                  "stopPriceLinkBasis": "BID",
+                  "stopPriceLinkType": "PERCENT",
+                  "stopPriceOffset": None,
+                  "duration": "GOOD_TILL_CANCEL" if asset_type == "EQUITY" else "DAY",
+                  "orderStrategyType": "SINGLE",
+                  "orderLegCollection": [
+                    {
+                      "instruction": side,
+                      "quantity": None,
+                      "instrument": {
+                        "symbol": symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"],
+                        "assetType": asset_type
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
         #/30% trailing stop code
 
         #Custom code for OCO orders
@@ -212,7 +218,7 @@ class LiveTrader(Tasks):
 
             #take_profit_price = (price*1.3)
 
-            order["childOrderStrategies"][0]["childOrderStrategies"][0]["stopPriceOffset"] = round(trail_stop, 2) if price >= 1 else round(trail_stop, 2)
+            order["childOrderStrategies"][0]["stopPriceOffset"] = round(trail_stop, 2) if price >= 1 else round(trail_stop, 2)
 
             #order["childOrderStrategies"][0]["childOrderStrategies"][1]["stopPrice"] = round(stop_price, 2) if price >= 1 else round(stop_price, 2)
 
@@ -240,7 +246,7 @@ class LiveTrader(Tasks):
                 order["orderLegCollection"][0]["quantity"] = shares
 
                 #Custom OCO code
-                order["childOrderStrategies"][0]["childOrderStrategies"][0]["orderLegCollection"][0]["quantity"] = shares
+                order["childOrderStrategies"][0]["quantity"] = shares
 
                 #order["childOrderStrategies"][0]["childOrderStrategies"][1]["orderLegCollection"][0]["quantity"] = shares
                 #End Custom OCO code
