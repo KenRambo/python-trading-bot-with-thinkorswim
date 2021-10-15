@@ -88,7 +88,7 @@ class LiveTrader(Tasks):
                                       "childOrderStrategies": [
                                                               {"orderStrategyType": "SINGLE",
                                                               "session": "NORMAL",
-                                                              "duration": "GOOD_TILL_CANCEL"
+                                                              "duration": "GOOD_TILL_CANCEL",
                                                               "orderType": "LIMIT",
                                                               "price": None,
                                                               "orderLegCollection": [{
