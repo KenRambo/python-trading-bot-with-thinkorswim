@@ -91,7 +91,7 @@ class LiveTrader(Tasks):
                 {
                   "session": "NORMAL",
                   "orderType": "TRAILING_STOP",
-                  "stopPriceLinkBasis": "BID",
+                  "stopPriceLinkBasis": "MARK",
                   "stopPriceLinkType": "PERCENT",
                   "stopPriceOffset": None,
                   "duration": "GOOD_TILL_CANCEL" if asset_type == "EQUITY" else "DAY",
