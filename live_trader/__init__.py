@@ -171,9 +171,9 @@ class LiveTrader(Tasks):
             order["price"] = round(price, 2) if price >= 1 else round(price, 4)
 
             #Code for OCO orders
-            stop_price = (price*0.8)
+            stop_price = (price*0.7)
 
-            take_profit_price = (price*1.3) if "TSLA" == symbol else (price*10)
+            take_profit_price = (price*1.3) if "TSLA" == symbol else (price*2)
 
             order["childOrderStrategies"][0]["childOrderStrategies"][0]["price"] = round(take_profit_price, 2) if price >= 1 else round(take_profit_price, 2)
 
