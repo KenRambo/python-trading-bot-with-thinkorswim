@@ -98,7 +98,7 @@ class LiveTrader(Tasks):
                   "orderStrategyType": "SINGLE",
                   "orderLegCollection": [
                     {
-                      "instruction": side,
+                      "instruction": "SELL" if asset_type == "EQUITY" else "SELL_TO_CLOSE",
                       "quantity": None,
                       "instrument": {
                         "symbol": symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"],
@@ -239,23 +239,26 @@ class LiveTrader(Tasks):
 
             active_strategy = strategies[strategy]["Active"]
 
-            shares = int(position_size/price)
+            shares = int(position_size/price) 
+
+
 
             if active_strategy and shares > 0:
 
                 order["orderLegCollection"][0]["quantity"] = shares
 
                 #Custom OCO code
-                order["childOrderStrategies"][0]["quantity"] = shares
+                order["childOrderStrategies"][0]["orderLegCollection"][0]["quantity"] = shares
 
                 #order["childOrderStrategies"][0]["childOrderStrategies"][1]["orderLegCollection"][0]["quantity"] = shares
                 #End Custom OCO code
-                
+
                 obj["Qty"] = shares
 
                 obj["Position_Size"] = position_size
 
                 obj["Buy_Price"] = price
+
 
             else:
 
