@@ -207,7 +207,7 @@ class LiveTrader(Tasks):
             order["price"] = round(price, 2) if price >= 1 else round(price, 4)
 
             #Code for OCO orders
-            trail_stop = 0.3
+            trail_stop = 30
             #stop_price = (price*0.7)
 
             #take_profit_price = (price*1.3)
