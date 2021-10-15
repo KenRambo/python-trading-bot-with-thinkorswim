@@ -34,7 +34,6 @@ class Tasks:
         position_size_percent = .2
         dynamic_position_size = (int(liquidation_value*position_size_percent)/100)
 
-
         self.users.update_one({"Name": self.user["Name"]}, {"$set": {
             f"Accounts.{self.account_id}.Account_Balance": liquidation_value}})
 
