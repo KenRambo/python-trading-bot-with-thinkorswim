@@ -32,7 +32,7 @@ class Tasks:
             account["securitiesAccount"]["currentBalances"]["liquidationValue"])
 
         position_size_percent = .2
-        dynamic_position_size = (int((account["securitiesAccount"]["currentBalances"]["cashAvailableForTrading"])*position_size_percent)/100)
+        dynamic_position_size = (int(liquidation_value*position_size_percent)/100)
 
 
         self.users.update_one({"Name": self.user["Name"]}, {"$set": {
