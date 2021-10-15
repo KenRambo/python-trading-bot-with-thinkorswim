@@ -193,15 +193,12 @@ class LiveTrader(Tasks):
                 strategies = self.mongo.users.find_one({"Name": self.user["Name"]})["Accounts"][str(
                     self.account_id)]["Strategies"]
 
-            #position_size = int(strategies[strategy]["Position_Size"])
-
-            position_size_percent = .2
-            dynamic_position_size = (int((account["securitiesAccount"]["currentBalances"]["cashAvailableForTrading"])*position_size_percent)/100)
+            position_size = int(strategies[strategy]["Position_Size"])
 
 
             active_strategy = strategies[strategy]["Active"]
 
-            shares = int(dynamic_position_size/price)
+            shares = int(position_size/price)
 
             if active_strategy and shares > 0:
 
@@ -215,7 +212,7 @@ class LiveTrader(Tasks):
                 
                 obj["Qty"] = shares
 
-                obj["Position_Size"] = dynamic_position_size
+                obj["Position_Size"] = position_size
 
                 obj["Buy_Price"] = price
 

@@ -31,8 +31,16 @@ class Tasks:
         liquidation_value = float(
             account["securitiesAccount"]["currentBalances"]["liquidationValue"])
 
+        position_size_percent = .2
+        dynamic_position_size = (int((account["securitiesAccount"]["currentBalances"]["cashAvailableForTrading"])*position_size_percent)/100)
+
+
         self.users.update_one({"Name": self.user["Name"]}, {"$set": {
             f"Accounts.{self.account_id}.Account_Balance": liquidation_value}})
+
+        self.users.update_one({"Name": self.user["Name"]}, {"$set": {
+            f"Accounts.{self.account_id}.Position_Size": dynamic_position_size}})
+
 
     @exception_handler
     def getDatetimeSplit(self):
