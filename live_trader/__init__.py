@@ -160,7 +160,7 @@ class LiveTrader(Tasks):
 
         position_size = None
 
-        if side == "BUY" or side == "BUY_TO_OPEN" and:
+        if side == "BUY" or side == "BUY_TO_OPEN":
 
             resp = self.tdameritrade.getQuote(
                 symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"])
