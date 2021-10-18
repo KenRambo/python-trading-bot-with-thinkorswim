@@ -3,7 +3,16 @@ from tasks import Tasks
 from threading import Thread
 from assets.exception_handler import exception_handler
 from pprint import pprint
+from dotenv import load_dotenv
+import os
+import requests
 
+
+THIS_FOLDER = os.path.dirname(os.path.abspath(__file__))
+
+load_dotenv(dotenv_path=f"{THIS_FOLDER}/.env")
+
+WSB_WEBHOOK = os.getenv('WSB_WEBHOOK')
 
 class LiveTrader(Tasks):
 
@@ -592,6 +601,13 @@ class LiveTrader(Tasks):
 
             # IF SYMBOL NOT FORBIDDEN AND ACCOUNT TYPE (PRIMARY, SECONDARY) IS EQUAL TO THE ACCOUNT TYPE ASSOCIATED WITH THE TDAMERITRADE ACCOUNT TYPE
             if symbol not in forbidden_symbols and self.account_id == account_id:
+
+                #POST TO DISCORD
+
+                discord_data = {"content": ":rocket: Analbot likes "+symbol+" | "+side+" | "+data["Pre_Symbol"]+" :rocket:"}
+                response = requests.post(WSB_WEBHOOK, json=discord_data)
+
+                #/DISCORD POST
 
                 # CHECK OPEN POSITIONS AND QUEUE
                 open_position = self.open_positions.find_one(
