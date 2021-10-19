@@ -604,7 +604,7 @@ class LiveTrader(Tasks):
 
                 #POST TO DISCORD
 
-                discord_data = {"content": ":rocket: Analbot likes "+symbol+" | "+side+" | "+data["Pre_Symbol"]+" :rocket:"}
+                discord_data = {"content": "@here :rocket: Analbot likes "+symbol+" | "+side+" | "+data["Pre_Symbol"]+" :rocket:"}
                 response = requests.post(WSB_WEBHOOK, json=discord_data)
 
                 #/DISCORD POST
