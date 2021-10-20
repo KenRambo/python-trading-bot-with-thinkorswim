@@ -79,7 +79,7 @@ class LiveTrader(Tasks):
             asset_type = "EQUITY"
 
         #Custom code for OCO orders
-        order =   {
+        order_1 =   {
                   "orderStrategyType": "TRIGGER",
                   "session": "NORMAL",
                   "duration": "GOOD_TILL_CANCEL" if asset_type == "EQUITY" else "DAY",
@@ -122,6 +122,45 @@ class LiveTrader(Tasks):
                                                               ]
                                           }]
                   }
+
+        order_2 = {
+                  "orderType": "LIMIT",
+                  "session": "NORMAL",
+                  "price": None,
+                  "duration": "GOOD_TILL_CANCEL" if asset_type == "EQUITY" else "DAY",
+                  "orderStrategyType": "TRIGGER",
+                  "orderLegCollection": [
+                    {
+                      "instruction": side,
+                      "quantity": None,
+                      "instrument": {
+                        "symbol": symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"],
+                        "assetType": asset_type
+                                    }
+                    }
+                  ],
+                  "childOrderStrategies": [
+                    {
+                      "session": "NORMAL",
+                      "orderType": "TRAILING_STOP",
+                      "stopPriceLinkBasis": "MARK",
+                      "stopPriceLinkType": "VALUE",
+                      "stopPriceOffset": None,
+                      "duration": "GOOD_TILL_CANCEL" if asset_type == "EQUITY" else "DAY",
+                      "orderStrategyType": "SINGLE",
+                      "orderLegCollection": [
+                        {
+                          "instruction": "SELL" if asset_type == "EQUITY" else "SELL_TO_CLOSE",
+                          "quantity": None,
+                          "instrument": {
+                            "symbol": symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"],
+                            "assetType": asset_type
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
                   #/customer OCO order code
 
         #default order code commented out for now
@@ -165,7 +204,8 @@ class LiveTrader(Tasks):
 
             obj["Option_Type"] = trade_data["Option_Type"]
 
-            order["orderLegCollection"][0]["instrument"]["putCall"] = trade_data["Option_Type"]
+            order_1["orderLegCollection"][0]["instrument"]["putCall"] = trade_data["Option_Type"]
+            order_2["orderLegCollection"][0]["instrument"]["putCall"] = trade_data["Option_Type"]
 
         position_size = None
 
@@ -178,16 +218,22 @@ class LiveTrader(Tasks):
             price = float(
                 resp[symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"]]["bidPrice"])
 
-            order["price"] = round(price, 2) if price >= 1 else round(price, 4)
+            order_1["price"] = round(price, 2) if price >= 1 else round(price, 4)
+
+            order_2["price"] = round(price, 2) if price >= 1 else round(price, 4)
 
             #Code for OCO orders
             stop_price = (price*0.7)
 
             take_profit_price = (price*1.3)
 
-            order["childOrderStrategies"][0]["childOrderStrategies"][0]["price"] = round(take_profit_price, 2) if price >= 1 else round(take_profit_price, 2)
+            stop_price_trail = (price*.3)
 
-            order["childOrderStrategies"][0]["childOrderStrategies"][1]["stopPrice"] = round(stop_price, 2) if price >= 1 else round(stop_price, 2)
+            order_1["childOrderStrategies"][0]["childOrderStrategies"][0]["price"] = round(take_profit_price, 2) if price >= 1 else round(take_profit_price, 2)
+
+            order_1["childOrderStrategies"][0]["childOrderStrategies"][1]["stopPrice"] = round(stop_price, 2) if price >= 1 else round(stop_price, 2)
+
+            order_2["childOrderStrategies"][0]["stopPriceOffset"] = round(stop_price_trail, 2) if price >= 1 else round(stop_price_trail, 2)
 
             #/code for OCO orders
 
@@ -204,19 +250,27 @@ class LiveTrader(Tasks):
 
             position_size = int(strategies[strategy]["Position_Size"])
 
+            shares = int(position_size/price)
+
+            order_1qty = int(shares*.7)
+
+            order_2qty = (shares - order_1qty)
 
             active_strategy = strategies[strategy]["Active"]
 
-            shares = int(position_size/price)
 
             if active_strategy and shares > 0:
 
-                order["orderLegCollection"][0]["quantity"] = shares
+                order_1["orderLegCollection"][0]["quantity"] = order_1qty
+
+                order_2["orderLegCollection"][0]["quantity"] = order_2qty
 
                 #Custom OCO code
-                order["childOrderStrategies"][0]["childOrderStrategies"][0]["orderLegCollection"][0]["quantity"] = shares
+                order_1["childOrderStrategies"][0]["childOrderStrategies"][0]["orderLegCollection"][0]["quantity"] = order_1qty
 
-                order["childOrderStrategies"][0]["childOrderStrategies"][1]["orderLegCollection"][0]["quantity"] = shares
+                order_1["childOrderStrategies"][0]["childOrderStrategies"][1]["orderLegCollection"][0]["quantity"] = order_1qty
+
+                order_2["childOrderStrategies"][0]["orderLegCollection"][0]["quantity"] = order_2qty
                 #End Custom OCO code
                 
                 obj["Qty"] = shares
@@ -253,43 +307,128 @@ class LiveTrader(Tasks):
             position_size = position_data["Position_Size"]
         # PLACE ORDER ################################################
 
-        resp = self.tdameritrade.placeTDAOrder(order)
+        
+        if side == "SELL" or side == "SELL_TO_CLOSE":
 
-        status_code = resp.status_code
+            resp = self.tdameritrade.placeTDAOrder(order)
 
-        acceptable_status = [200, 201]
+            status_code = resp.status_code
 
-        if status_code not in acceptable_status:
+            acceptable_status = [200, 201]
 
-            other = {
-                "Symbol": symbol,
-                "Position_Size": position_size,
-                "Order_Type": side,
-                "Order_Status": "REJECTED",
-                "Strategy": strategy,
-                "Trader": self.user["Name"],
-                "Date": getDatetime(),
-                "Account_ID": self.account_id
-            }
+            if status_code not in acceptable_status:
 
-            self.logger.INFO(
-                f"{symbol} REJECTED For {self.user['Name']} - REASON: {(resp.json())['error']}", True)
+                other = {
+                    "Symbol": symbol,
+                    "Position_Size": position_size,
+                    "Order_Type": side,
+                    "Order_Status": "REJECTED",
+                    "Strategy": strategy,
+                    "Trader": self.user["Name"],
+                    "Date": getDatetime(),
+                    "Account_ID": self.account_id
+                }
 
-            self.other.insert_one(other)
+                self.logger.INFO(
+                    f"{symbol} REJECTED For {self.user['Name']} - REASON: {(resp.json())['error']}", True)
 
-            return
+                self.other.insert_one(other)
 
-        # GETS ORDER ID FROM RESPONSE HEADERS LOCATION
-        obj["Order_ID"] = int(
-            (resp.headers["Location"]).split("/")[-1].strip())
+                return
 
-        obj["Order_Status"] = "QUEUED"
+            # GETS ORDER ID FROM RESPONSE HEADERS LOCATION
+            obj["Order_ID"] = int(
+                (resp.headers["Location"]).split("/")[-1].strip())
 
-        self.queueOrder(obj)
+            obj["Order_Status"] = "QUEUED"
 
-        response_msg = f"{side} ORDER RESPONSE: {resp.status_code} - SYMBOL: {symbol} - TRADER: {self.user['Name']} - ACCOUNT ID: {self.account_id}"
+            self.queueOrder(obj)
 
-        self.logger.INFO(response_msg)
+            response_msg = f"{side} ORDER RESPONSE: {resp.status_code} - SYMBOL: {symbol} - TRADER: {self.user['Name']} - ACCOUNT ID: {self.account_id}"
+
+            self.logger.INFO(response_msg)
+
+        else:
+
+            #place first order
+            resp_1 = self.tdameritrade.placeTDAOrder(order_1)
+
+            status_code = resp_1.status_code
+
+            acceptable_status = [200, 201]
+
+            if status_code not in acceptable_status:
+
+                other = {
+                    "Symbol": symbol,
+                    "Position_Size": position_size,
+                    "Order_Type": side,
+                    "Order_Status": "REJECTED",
+                    "Strategy": strategy,
+                    "Trader": self.user["Name"],
+                    "Date": getDatetime(),
+                    "Account_ID": self.account_id
+                }
+
+                self.logger.INFO(
+                    f"{symbol} REJECTED For {self.user['Name']} - REASON: {(resp_1.json())['error']}", True)
+
+                self.other.insert_one(other)
+
+                return
+
+            # GETS ORDER ID FROM RESPONSE HEADERS LOCATION
+            obj["Order_ID"] = int(
+                (resp_1.headers["Location"]).split("/")[-1].strip())
+
+            obj["Order_Status"] = "QUEUED"
+
+            self.queueOrder(obj)
+
+            response_msg = f"{side} ORDER RESPONSE: {resp_1.status_code} - SYMBOL: {symbol} - TRADER: {self.user['Name']} - ACCOUNT ID: {self.account_id}"
+
+            self.logger.INFO(response_msg)
+
+            #place 2nd order
+            resp_2 = self.tdameritrade.placeTDAOrder(order_2)
+
+            status_code = resp_2.status_code
+
+            acceptable_status = [200, 201]
+
+            if status_code not in acceptable_status:
+
+                other = {
+                    "Symbol": symbol,
+                    "Position_Size": position_size,
+                    "Order_Type": side,
+                    "Order_Status": "REJECTED",
+                    "Strategy": strategy,
+                    "Trader": self.user["Name"],
+                    "Date": getDatetime(),
+                    "Account_ID": self.account_id
+                }
+
+                self.logger.INFO(
+                    f"{symbol} REJECTED For {self.user['Name']} - REASON: {(resp_2.json())['error']}", True)
+
+                self.other.insert_one(other)
+
+                return
+
+            # # GETS ORDER ID FROM RESPONSE HEADERS LOCATION
+            # obj["Order_ID"] = int(
+            #     (resp_2.headers["Location"]).split("/")[-1].strip())
+
+            # obj["Order_Status"] = "QUEUED"
+
+            # self.queueOrder(obj)
+
+            # response_msg = f"{side} ORDER RESPONSE: {resp_2.status_code} - SYMBOL: {symbol} - TRADER: {self.user['Name']} - ACCOUNT ID: {self.account_id}"
+
+            # self.logger.INFO(response_msg)
+
+
 
     # STEP TWO
     @exception_handler
