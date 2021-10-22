@@ -146,7 +146,7 @@ class LiveTrader(Tasks):
                       "stopPriceLinkBasis": "MARK",
                       "stopPriceLinkType": "VALUE",
                       "stopPriceOffset": None,
-                      "duration": "GOOD_TILL_CANCEL" if asset_type == "EQUITY" else "DAY",
+                      "duration": "GOOD_TILL_CANCEL",
                       "orderStrategyType": "SINGLE",
                       "orderLegCollection": [
                         {
