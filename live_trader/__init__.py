@@ -252,7 +252,7 @@ class LiveTrader(Tasks):
 
             shares = int(position_size/price)
 
-            order_1qty = int(shares*.7)
+            order_1qty = int(shares*.85)
 
             order_2qty = (shares - order_1qty)
 
