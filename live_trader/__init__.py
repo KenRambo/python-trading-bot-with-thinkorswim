@@ -801,7 +801,7 @@ class LiveTrader(Tasks):
 
                 #POST TO TWITTER
                 timestamp = str(datetime.now())
-                message = timestamp+"| \U0001F680 TradingBot9000 likes "+symbol+" | "+side+" | "+data["Pre_Symbol"]+" \U0001F680"
+                message = timestamp+"| \U0001F680 TradingBot9000 likes $"+symbol+" | "+side+" | "+data["Pre_Symbol"]+" \U0001F680"
                 twitter.update_status(status=message)
                 print("Tweeted: %s" % message)
                 #/POST TO TWITTER
