@@ -4,8 +4,10 @@ from threading import Thread
 from assets.exception_handler import exception_handler
 from pprint import pprint
 from dotenv import load_dotenv
+from datetime import datetime
 import os
 import requests
+from twython import Twython
 
 
 THIS_FOLDER = os.path.dirname(os.path.abspath(__file__))
@@ -13,6 +15,18 @@ THIS_FOLDER = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(dotenv_path=f"{THIS_FOLDER}/.env")
 
 WSB_WEBHOOK = os.getenv('WSB_WEBHOOK')
+CONSUMER_KEY = os.getenv('CONSUMER_KEY')
+CONSUMER_SECRET = os.getenv('CONSUMER_SECRET')
+ACCESS_TOKEN = os.getenv('ACCESS_TOKEN')
+ACCESS_TOKEN_SECRET = os.getenv('ACCESS_TOKEN_SECRET')
+
+twitter = Twython(
+            CONSUMER_KEY,
+            CONSUMER_SECRET,
+            ACCESS_TOKEN,
+            ACCESS_TOKEN_SECRET
+            )
+
 
 class LiveTrader(Tasks):
 
@@ -743,9 +757,10 @@ class LiveTrader(Tasks):
 
                 #POST TO DISCORD
 
+
                 discord_data = {"content": ":rocket: Analbot likes "+symbol+" | "+side+" | "+data["Pre_Symbol"]+" :rocket:"}
                 response = requests.post(WSB_WEBHOOK, json=discord_data)
-
+                print("POSTED TO DISCORD: %s" % discord_data)
                 #/DISCORD POST
 
                 # CHECK OPEN POSITIONS AND QUEUE
@@ -783,6 +798,13 @@ class LiveTrader(Tasks):
 
                         # LIVE TRADE
                         self.placeOrder(data, open_position)
+
+                #POST TO TWITTER
+                timestamp = str(datetime.now())
+                message = timestamp+"| \U0001F680 TradingBot9000 likes "+symbol+" | "+side+" | "+data["Pre_Symbol"]+" \U0001F680"
+                twitter.update_status(status=message)
+                print("Tweeted: %s" % message)
+                #/POST TO TWITTER
 
 # {'accountId': 123456789,
 #  'cancelTime': '2021-04-19',
