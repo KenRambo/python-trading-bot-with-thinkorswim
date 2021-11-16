@@ -230,7 +230,7 @@ class LiveTrader(Tasks):
                 symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"])
 
             price = float(
-                resp[symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"]]["mark"])
+                resp[symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"]]["lastPrice"])
 
             order_1["price"] = round(price, 2) if price >= 1 else round(price, 4)
 
