@@ -4,12 +4,15 @@ from threading import Thread
 from assets.exception_handler import exception_handler
 from api_trader.order_builder import OrderBuilder
 from dotenv import load_dotenv
+from datetime import datetime
 from pathlib import Path
 import os
 from pymongo.errors import WriteError, WriteConcernError
 import traceback
 import time
 from random import randint
+import requests
+from twython import Twython
 
 
 THIS_FOLDER = os.path.dirname(os.path.abspath(__file__))
@@ -17,6 +20,19 @@ THIS_FOLDER = os.path.dirname(os.path.abspath(__file__))
 path = Path(THIS_FOLDER)
 
 load_dotenv(dotenv_path=f"{path.parent}/config.env")
+
+WSB_WEBHOOK = os.getenv('WSB_WEBHOOK')
+CONSUMER_KEY = os.getenv('CONSUMER_KEY')
+CONSUMER_SECRET = os.getenv('CONSUMER_SECRET')
+ACCESS_TOKEN = os.getenv('ACCESS_TOKEN')
+ACCESS_TOKEN_SECRET = os.getenv('ACCESS_TOKEN_SECRET')
+
+twitter = Twython(
+            CONSUMER_KEY,
+            CONSUMER_SECRET,
+            ACCESS_TOKEN,
+            ACCESS_TOKEN_SECRET
+            )
 
 RUN_TASKS = True if os.getenv('RUN_TASKS') == "True" else False
 
@@ -93,6 +109,19 @@ class ApiTrader(Tasks, OrderBuilder):
         side = trade_data["Side"]
 
         order_type = strategy_object["Order_Type"]
+
+        #POST TO DISCORD
+        discord_data = {"content": ":rocket: Analbot likes "+symbol+" | "+side+" | "+trade_data["Pre_Symbol"]+" :rocket:"}
+        response = requests.post(WSB_WEBHOOK, json=discord_data)
+        print("POSTED TO DISCORD: %s" % discord_data)
+        #/DISCORD POST
+
+        #POST TO TWITTER
+        timestamp = str(datetime.now())
+        message = timestamp+"| \U0001F680 TradingBot9000 likes $"+symbol+" | "+side+" | "+trade_data["Pre_Symbol"]+" \U0001F680"
+        twitter.update_status(status=message)
+        print("Tweeted: %s" % message)
+        #/POST TO TWITTER
 
         if order_type == "STANDARD":
 
