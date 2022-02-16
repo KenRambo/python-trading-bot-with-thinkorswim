@@ -2,18 +2,20 @@ from pprint import pprint
 from dotenv import load_dotenv
 import requests
 import os
-import json
+from pathlib import Path
 
 THIS_FOLDER = os.path.dirname(os.path.abspath(__file__))
 
-load_dotenv(dotenv_path=f"{THIS_FOLDER}/.env")
+path = Path(THIS_FOLDER)
+
+load_dotenv(dotenv_path=f"{path.parent}/config.env")
 
 PUSH_API_KEY = os.getenv('PUSH_API_KEY')
 
 
 class PushNotification:
 
-    def __init__(self, device_id, logger, gmail):
+    def __init__(self, device_id, logger):
 
         self.url = 'https://www.pushsafer.com/api'
 
@@ -31,10 +33,6 @@ class PushNotification:
 
         self.logger = logger
 
-        self.gmail = gmail
-
-        self.remaining_alert_sent = False
-
     def send(self, notification):
         """ METHOD SENDS PUSH NOTIFICATION TO USER
 
@@ -44,13 +42,19 @@ class PushNotification:
 
         try:
 
+            # RESPONSE: {'status': 1, 'success': 'message transmitted', 'available': 983, 'message_ids': '18265430:34011'}
+
             self.post_fields["m"] = notification
 
             response = requests.post(self.url, self.post_fields)
 
-            remaining = (response.json())["available"]
+            if response.json()["success"] == 'message transmitted':
 
-            self.logger.INFO(f"PUSH NOTIFICATION: {response.json()}")
+                self.logger.info(f"Push Sent!\n")
+
+            else:
+
+                self.logger.warning(f"Push Failed!\n")
 
         except ValueError:
 
@@ -60,6 +64,6 @@ class PushNotification:
 
             pass
 
-        except Exception:
+        except Exception as e:
 
-            self.logger.ERROR()
+            self.logger.error(e)

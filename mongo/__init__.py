@@ -1,16 +1,18 @@
-import colorama
-from pprint import pprint
+from pathlib import Path
 from pymongo import MongoClient
 from dotenv import load_dotenv
 import os
+import certifi
+ca = certifi.where()
 
 THIS_FOLDER = os.path.dirname(os.path.abspath(__file__))
 
-load_dotenv(dotenv_path=f"{THIS_FOLDER}/.env")
+path = Path(THIS_FOLDER)
 
-colorama.init()
+load_dotenv(dotenv_path=f"{path.parent}/config.env")
 
 MONGO_URI = os.getenv('MONGO_URI')
+RUN_LIVE_TRADER = True if os.getenv('RUN_LIVE_TRADER') == "True" else False
 
 
 class MongoDB:
@@ -23,43 +25,44 @@ class MongoDB:
 
         try:
 
-            self.logger.INFO("CONNECTING TO MONGO...")
+            self.logger.info("CONNECTING TO MONGO...", extra={'log': False})
 
             if MONGO_URI != None:
 
-                self.client = MongoClient(MONGO_URI, authSource="admin")
+                self.client = MongoClient(
+                    MONGO_URI, authSource="admin", tlsCAFile=ca)
 
                 # SIMPLE TEST OF CONNECTION BEFORE CONTINUING
                 self.client.server_info()
 
-                self.db = self.client["Live_Trader"]
+                self.db = self.client["Api_Trader"]
 
                 self.users = self.db["users"]
+
+                self.strategies = self.db["strategies"]
 
                 self.open_positions = self.db["open_positions"]
 
                 self.closed_positions = self.db["closed_positions"]
 
-                self.other = self.db["other"]
+                self.rejected = self.db["rejected"]
+
+                self.canceled = self.db["canceled"]
 
                 self.queue = self.db["queue"]
 
-                self.logs = self.db["logs"]
+                self.forbidden = self.db["forbidden"]
 
-                self.balance_history = self.db["balance_history"]
-
-                self.profit_loss_history = self.db["profit_loss_history"]
-
-                self.logger.INFO("CONNECTED TO MONGO!\n")
+                self.logger.info("CONNECTED TO MONGO!\n", extra={'log': False})
 
                 return True
 
             else:
 
-                raise Exception("MONGO URI IS NONETYPE")
+                raise Exception("MISSING MONGO URI")
 
-        except Exception:
-            
-            self.logger.CRITICAL("FAILED TO CONNECT TO MONGO!")
+        except Exception as e:
+
+            self.logger.error(f"FAILED TO CONNECT TO MONGO! - {e}")
 
             return False
