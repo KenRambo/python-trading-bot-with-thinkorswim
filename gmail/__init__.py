@@ -9,13 +9,12 @@ from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 import os.path
 import os
-from pprint import pprint
 from datetime import datetime
 
 THIS_FOLDER = os.path.dirname(os.path.abspath(__file__))
 
 
-class Gmail():
+class Gmail:
 
     def __init__(self, logger):
 
@@ -41,7 +40,7 @@ class Gmail():
 
         try:
 
-            self.logger.INFO("CONNECTING TO GMAIL...")
+            self.logger.info("CONNECTING TO GMAIL...", extra={'log': False})
 
             if os.path.exists(self.token_file):
 
@@ -70,7 +69,7 @@ class Gmail():
 
                 self.service = build('gmail', 'v1', credentials=self.creds)
 
-                self.logger.INFO("CONNECTED TO GMAIL!\n")
+                self.logger.info("CONNECTED TO GMAIL!\n", extra={'log': False})
 
                 return True
 
@@ -79,8 +78,9 @@ class Gmail():
                 raise Exception("Creds Not Found!")
 
         except Exception as e:
-            print(e)
-            self.logger.CRITICAL("FAILED TO CONNECT TO GMAIL!\n")
+
+            self.logger.error(
+                f"FAILED TO CONNECT TO GMAIL! - {e}\n", extra={'log': False})
 
             return False
 
@@ -114,7 +114,7 @@ class Gmail():
 
         day = exp[4:6]
 
-        option_type = "CALL" if "C" in exp else "PUT" 
+        option_type = "CALL" if "C" in exp else "PUT"
 
         # .AA201211C5.5
 
@@ -137,8 +137,8 @@ class Gmail():
 
         trade_data = []
 
-        # Alert: New Symbol: ABC was added to LinRegEMA_v2, BUY, ACCOUNT ID
-        # Alert: New Symbol: ABC was added to LinRegEMA_v2, BUY, ACCOUNT ID
+        # Alert: New Symbol: ABC was added to LinRegEMA_v2, BUY
+        # Alert: New Symbol: ABC was added to LinRegEMA_v2, BUY
 
         for payload in payloads:
 
@@ -158,50 +158,54 @@ class Gmail():
 
                             symbols = sep[0].strip().split(",")
 
-                            strategy, side, * \
-                                account_ids = sep[1].strip().split(",")
-
-                            account_ids = [int(account_id.replace(
-                                ".", " ").strip()) for account_id in account_ids]
+                            strategy, side = sep[1].strip().split(",")
 
                             for symbol in symbols:
 
-                                if strategy != "" and side != "" and len(account_ids) > 0:
+                                if strategy != "" and side != "":
 
-                                    # ITERATE OVER LIST OF ACCOUNT IDS FOR THIS PARTICULAR STRATEGY AND SYMBOL
-                                    for account_id in account_ids:
+                                    obj = {
+                                        "Symbol": symbol.strip(),
+                                        "Side": side.replace(".", " ").upper().strip(),
+                                        "Strategy": strategy.replace(".", " ").upper().strip(),
+                                        "Asset_Type": "EQUITY"
+                                    }
 
-                                        obj = {
-                                            "Symbol": symbol.strip(),
-                                            "Side": side.upper().strip(),
-                                            "Strategy": strategy.replace(".", " ").upper().strip(),
-                                            "Account_ID": account_id
-                                        }
+                                    # IF THIS IS AN OPTION
+                                    if "." in symbol:
 
-                                        # IF THIS IS AN OPTION
-                                        if "." in symbol:
+                                        symbol, pre_symbol, exp_date, option_type = self.handleOption(
+                                            symbol)
 
-                                            symbol, pre_symbol, exp_date, option_type = self.handleOption(
-                                                symbol)
+                                        obj["Symbol"] = symbol
 
-                                            obj["Symbol"] = symbol
+                                        obj["Pre_Symbol"] = pre_symbol
 
-                                            obj["Pre_Symbol"] = pre_symbol
+                                        obj["Exp_Date"] = exp_date
 
-                                            obj["Exp_Date"] = exp_date
+                                        obj["Option_Type"] = option_type
 
-                                            obj["Option_Type"] = option_type
+                                        obj["Asset_Type"] = "OPTION"
+
+                                    # CHECK TO SEE IF ASSET TYPE AND SIDE ARE A LOGICAL MATCH
+                                    if side.replace(".", " ").upper().strip() in ["SELL", "BUY"] and obj["Asset_Type"] == "EQUITY" or side.replace(".", " ").upper().strip() in ["SELL_TO_CLOSE", "SELL_TO_OPEN", "BUY_TO_CLOSE", "BUY_TO_OPEN"] and obj["Asset_Type"] == "OPTION":
 
                                         trade_data.append(obj)
 
+                                    else:
+
+                                        self.logger.warning(
+                                            f"{__class__.__name__} - ILLOGICAL MATCH - SIDE: {side.upper().strip()} / ASSET TYPE: {obj['Asset_Type']}")
+
                                 else:
 
-                                    self.logger.ERROR(
-                                        f"MISSING FIELDS FOR STRATEGY {strategy}")
+                                    self.logger.warning(
+                                        f"{__class__.__name__} - MISSING FIELDS FOR STRATEGY {strategy}")
 
                             break
 
-                    self.logger.INFO(f"NEW EMAIL: {payload}")
+                    self.logger.info(
+                        f"New Email: {payload}", extra={'log': False})
 
             except IndexError:
 
@@ -209,12 +213,12 @@ class Gmail():
 
             except ValueError:
 
-                self.logger.WARNING(__class__.__name__,
-                                    f"EMAIL FORMAT ERROR: {payload}")
+                self.logger.warning(
+                    f"{__class__.__name__} - Email Format Issue: {payload}")
 
-            except Exception:
+            except Exception as e:
 
-                self.logger.ERROR()
+                self.logger.error(f"{__class__.__name__} - {e}")
 
         return trade_data
 
@@ -250,9 +254,9 @@ class Gmail():
                     self.service.users().messages().trash(
                         userId='me', id=message["id"]).execute()
 
-        except Exception:
+        except Exception as e:
 
-            self.logger.ERROR()
+            self.logger.error(f"{__class__.__name__} - {e}")
 
         finally:
 

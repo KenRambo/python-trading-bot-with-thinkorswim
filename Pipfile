@@ -5,9 +5,6 @@ verify_ssl = true
 
 [dev-packages]
 pylint = "*"
-bandit = "*"
-pandas = "*"
-tabulate = "*"
 autopep8 = "*"
 
 [packages]
@@ -17,11 +14,10 @@ google-auth-oauthlib = "*"
 python-dotenv = "*"
 pymongo = "*"
 dnspython = "*"
-termcolor = "*"
-colorama = "*"
 requests = "*"
 pytz = "*"
 psutil = "*"
+certifi = "*"
 
 [requires]
 python_version = "3.8"
