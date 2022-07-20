@@ -29,6 +29,23 @@ class Tasks:
 
         self.isAlive = True
 
+    # @exception_handler
+    # def updateAccountBalance(self):
+    #     """ METHOD UPDATES USERS ACCOUNT BALANCE IN MONGODB
+    #     """
+
+    #     liquidation_value = self.users
+    #     self.logger.info({liquidation_value})
+
+    #     position_size_percent = .1
+    #     dynamic_position_size = (int(liquidation_value*position_size_percent)/100)
+
+    #     # for strategy in self.strategies["Accounts"][str(self.account_id)]["Strategies"]:
+
+    #     #     self.strategies.update_many({"$set": {f"Position_Size": dynamic_position_size}})
+
+    #     self.logger.info(f"10% Dynamic Position Size set to: ${dynamic_position_size}")
+
     @exception_handler
     def checkOCOpapertriggers(self):
 
@@ -155,6 +172,7 @@ class Tasks:
 
                 # RUN TASKS ####################################################
                 self.checkOCOtriggers()
+                # self.updateAccountBalance()
 
                 ##############################################################
 

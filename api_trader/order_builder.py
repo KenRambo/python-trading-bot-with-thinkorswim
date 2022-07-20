@@ -115,7 +115,7 @@ class OrderBuilder:
             price = float(resp[symbol  if asset_type == "EQUITY" else trade_data["Pre_Symbol"]][SELL_PRICE])
 
         self.order["price"] = round(
-            price, 2) if price >= 1 else round(price, 4)
+            price, 2) if price >= 1 else round(price, 2)
 
         # IF OPENING A POSITION
         if direction == "OPEN POSITION":
@@ -204,7 +204,7 @@ class OrderBuilder:
                         "duration": "GOOD_TILL_CANCEL",
                         "orderType": "LIMIT",
                         "price": round(
-                            order["price"] * TAKE_PROFIT_PERCENTAGE, 2) if order["price"] * TAKE_PROFIT_PERCENTAGE >= 1 else round(order["price"] * TAKE_PROFIT_PERCENTAGE, 4),
+                            order["price"] * TAKE_PROFIT_PERCENTAGE, 2) if order["price"] * TAKE_PROFIT_PERCENTAGE >= 1 else round(order["price"] * TAKE_PROFIT_PERCENTAGE, 2),
                         "orderLegCollection": [
                             {
                                 "instruction": instruction,
@@ -221,7 +221,7 @@ class OrderBuilder:
                         "session": "NORMAL",
                         "duration": "GOOD_TILL_CANCEL",
                         "orderType": "STOP",
-                        "stopPrice": round(order["price"] * STOP_LOSS_PERCENTAGE, 2) if order["price"] * STOP_LOSS_PERCENTAGE >= 1 else round(order["price"] * STOP_LOSS_PERCENTAGE, 4),
+                        "stopPrice": round(order["price"] * STOP_LOSS_PERCENTAGE, 2) if order["price"] * STOP_LOSS_PERCENTAGE >= 1 else round(order["price"] * STOP_LOSS_PERCENTAGE, 2),
                         "orderLegCollection": [
                             {
                                 "instruction": instruction,
