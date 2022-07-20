@@ -111,16 +111,16 @@ class ApiTrader(Tasks, OrderBuilder):
         order_type = strategy_object["Order_Type"]
 
         #POST TO DISCORD
-        discord_data = {"content": ":rocket: Analbot likes "+symbol+" | "+side+" | "+trade_data["Pre_Symbol"]+" :rocket:"}
-        response = requests.post(WSB_WEBHOOK, json=discord_data)
-        print("POSTED TO DISCORD: %s" % discord_data)
+        # discord_data = {"content": ":rocket: Analbot likes "+symbol+" | "+side+" | "+trade_data["Pre_Symbol"]+" :rocket:"}
+        # response = requests.post(WSB_WEBHOOK, json=discord_data)
+        # print("POSTED TO DISCORD: %s" % discord_data)
         #/DISCORD POST
 
         #POST TO TWITTER
-        timestamp = str(datetime.now())
-        message = timestamp+"| \U0001F680 TradingBot9000 likes $"+symbol+" | "+side+" | "+trade_data["Pre_Symbol"]+" \U0001F680"
-        twitter.update_status(status=message)
-        print("Tweeted: %s" % message)
+        # timestamp = str(datetime.now())
+        # message = timestamp+"| \U0001F680 TradingBot9000 likes $"+symbol+" | "+side+" | "+trade_data["Pre_Symbol"]+" \U0001F680"
+        # twitter.update_status(status=message)
+        # print("Tweeted: %s" % message)
         #/POST TO TWITTER
 
         if order_type == "STANDARD":
