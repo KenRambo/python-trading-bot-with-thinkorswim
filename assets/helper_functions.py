@@ -71,6 +71,6 @@ def selectSleep():
     return 1
 
 
-def modifiedAccountID(account_id):
+def modifiedAccountID(id_token):
 
-    return '*' * (len(str(account_id)) - 4) + str(account_id)[-4:]
+    return '*' * (len(str(id_token)) - 4) + str(id_token)[-4:]

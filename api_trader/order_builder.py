@@ -3,6 +3,10 @@ from assets.helper_functions import getDatetime
 from dotenv import load_dotenv
 from pathlib import Path
 import os
+from schwab.orders.options import OptionSymbol
+import schwabdev
+import datetime
+from pprint import pprint
 
 THIS_FOLDER = os.path.dirname(os.path.abspath(__file__))
 
@@ -48,14 +52,26 @@ class OrderBuilder:
             "Order_Status": None,
             "Side": None,
             "Asset_Type": None,
-            "Account_ID": self.account_id,
+            "account_id": self.account_id,
             "Position_Type": None,
             "Direction": None
         }
+        
 
     def standardOrder(self, trade_data, strategy_object, direction, OCOorder=False):
 
+
+        #{'Symbol': 'SPY', 'Side': 'BUY_TO_OPEN', 'Strategy': 'SPY_SCAN_OPT_SELL', 'Asset_Type': 'OPTION', 'Pre_Symbol': 'SPY_092625P569', 'Exp_Date': datetime.datetime(2025, 9, 26, 0, 0), 'Option_Type': 'PUT', 'Position_Type': 'LONG'} 
+
         symbol = trade_data["Symbol"]
+
+        N=3
+
+        length = len(trade_data["Pre_Symbol"])
+
+        split_strike = trade_data["Pre_Symbol"][length-N:]
+
+        formatted_symbol = OptionSymbol(trade_data["Symbol"], trade_data["Exp_Date"],trade_data["Option_Type"][0],split_strike).build()
 
         side = trade_data["Side"]
 
@@ -63,14 +79,14 @@ class OrderBuilder:
 
         asset_type = "OPTION" if "Pre_Symbol" in trade_data else "EQUITY"
 
-        # TDA ORDER OBJECT
+        # SCHWAB ORDER OBJECT
         self.order["session"] = "NORMAL"
 
         self.order["duration"] = "GOOD_TILL_CANCEL" if asset_type == "EQUITY" else "DAY"
 
         self.order["orderLegCollection"][0]["instruction"] = side
 
-        self.order["orderLegCollection"][0]["instrument"]["symbol"] = symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"]
+        self.order["orderLegCollection"][0]["instrument"]["symbol"] = symbol if asset_type == "EQUITY" else formatted_symbol
 
         self.order["orderLegCollection"][0]["instrument"]["assetType"] = asset_type
         ##############################################################
@@ -94,7 +110,7 @@ class OrderBuilder:
         # IF OPTION
         if asset_type == "OPTION":
 
-            self.obj["Pre_Symbol"] = trade_data["Pre_Symbol"]
+            self.obj["Pre_Symbol"] = formatted_symbol
 
             self.obj["Exp_Date"] = trade_data["Exp_Date"]
 
@@ -103,16 +119,17 @@ class OrderBuilder:
             self.order["orderLegCollection"][0]["instrument"]["putCall"] = trade_data["Option_Type"]
 
         # GET QUOTE FOR SYMBOL
-        resp = self.tdameritrade.getQuote(
-            symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"])
+        resp = self.client.quote(symbol.json() if asset_type == "EQUITY" else formatted_symbol).json()
 
-        price = float(resp[symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"]][BUY_PRICE]) if side in ["BUY", "BUY_TO_OPEN", "BUY_TO_CLOSE"] else float(
-            resp[symbol if asset_type == "EQUITY" else trade_data["Pre_Symbol"]][SELL_PRICE])
+        price = float(resp[symbol if asset_type == "EQUITY" else formatted_symbol]["quote"]["askPrice"]) if side in ["BUY", "BUY_TO_OPEN", "BUY_TO_CLOSE"] else float(
+            resp[symbol if asset_type == "EQUITY" else formatted_symbol]["quote"]["bidPrice"])
 
         # OCO ORDER NEEDS TO USE ASK PRICE FOR ISSUE WITH THE ORDER BEING TERMINATED UPON BEING PLACED
         if OCOorder:
 
-            price = float(resp[symbol  if asset_type == "EQUITY" else trade_data["Pre_Symbol"]][SELL_PRICE])
+            formatted_symbol = OptionSymbol(trade_data["Symbol"], trade_data["Exp_Date"],trade_data["Option_Type"][0],split_strike).build()
+
+            price = float(resp[symbol  if asset_type == "EQUITY" else formatted_symbol]["quote"]["bidPrice"])
 
         self.order["price"] = round(
             price, 2) if price >= 1 else round(price, 2)
@@ -191,6 +208,15 @@ class OrderBuilder:
 
             instruction = "BUY_TO_CLOSE"
         #####################################
+        symbol = trade_data["Symbol"]
+
+        N=3
+
+        length = len(trade_data["Pre_Symbol"])
+
+        split_strike = trade_data["Pre_Symbol"][length-N:]
+
+        formatted_symbol = OptionSymbol(trade_data["Symbol"], trade_data["Exp_Date"],trade_data["Option_Type"][0],split_strike).build()
 
         order["orderStrategyType"] = "TRIGGER"
 
@@ -211,7 +237,7 @@ class OrderBuilder:
                                 "quantity": obj["Qty"],
                                 "instrument": {
                                     "assetType": asset_type,
-                                    "symbol": trade_data["Symbol"] if asset_type == "EQUITY" else trade_data["Pre_Symbol"]
+                                    "symbol": trade_data["Symbol"] if asset_type == "EQUITY" else formatted_symbol
                                 }
                             }
                         ]
@@ -228,7 +254,7 @@ class OrderBuilder:
                                 "quantity": obj["Qty"],
                                 "instrument": {
                                     "assetType": asset_type,
-                                    "symbol": trade_data["Symbol"] if asset_type == "EQUITY" else trade_data["Pre_Symbol"]
+                                    "symbol": trade_data["Symbol"] if asset_type == "EQUITY" else formatted_symbol
                                 }
                             }
                         ]

@@ -254,6 +254,8 @@ class Gmail:
                     self.service.users().messages().trash(
                         userId='me', id=message["id"]).execute()
 
+                   
+
         except Exception as e:
 
             self.logger.error(f"{__class__.__name__} - {e}")

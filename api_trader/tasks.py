@@ -4,6 +4,7 @@ import time
 from dotenv import load_dotenv
 from pathlib import Path
 import os
+from schwabBot import Schwab
 
 from assets.exception_handler import exception_handler
 from assets.helper_functions import getDatetime, selectSleep, modifiedAccountID
@@ -29,22 +30,36 @@ class Tasks:
 
         self.isAlive = True
 
-    # @exception_handler
-    # def updateAccountBalance(self):
-    #     """ METHOD UPDATES USERS ACCOUNT BALANCE IN MONGODB
-    #     """
+    @exception_handler
+    def updateAccountBalance(self):
+        """Updates the user's account balance in MongoDB by recalculating and updating 
+        the dynamic position size for all strategies associated with this account.
+        """
+        # Retrieve the current liquidation value from the user's data.
+        # (Make sure that your user document actually contains this key or adjust accordingly.)
+        liquidation_value = self.user.get("Liquidation_Value")
+        if liquidation_value is None:
+            self.logger.error("Liquidation value not available in user data.")
+            return
 
-    #     liquidation_value = self.users
-    #     self.logger.info({liquidation_value})
+        self.logger.info(f"Liquidation Value: {liquidation_value}")
 
-    #     position_size_percent = .1
-    #     dynamic_position_size = (int(liquidation_value*position_size_percent)/100)
+        # Calculate dynamic position size.
+        # For example, if you want to use 10% of the liquidation value:
+        position_size_percent = 10  # 10% of the account
+        # Using int() to round down to whole dollars (adjust as needed)
+        dynamic_position_size = int((liquidation_value * position_size_percent) / 100)
 
-    #     # for strategy in self.strategies["Accounts"][str(self.account_id)]["Strategies"]:
+        # Update all strategies for this account by matching on account_id.
+        update_result = self.strategies.update_many(
+            {"account_id": self.account_id},
+            {"$set": {"Position_Size": dynamic_position_size}}
+        )
 
-    #     #     self.strategies.update_many({"$set": {f"Position_Size": dynamic_position_size}})
+        self.logger.info(
+            f"Updated {update_result.modified_count} strategies with a dynamic position size of ${dynamic_position_size}"
+        )
 
-    #     self.logger.info(f"10% Dynamic Position Size set to: ${dynamic_position_size}")
 
     @exception_handler
     def checkOCOpapertriggers(self):
@@ -55,7 +70,7 @@ class Tasks:
 
             asset_type = position["Asset_Type"]
 
-            resp = self.tdameritrade.getQuote(
+            resp = self.schwab.getQuote(
                 symbol if asset_type == "EQUITY" else position["Pre_Symbol"])
 
             price = float(resp[symbol  if asset_type == "EQUITY" else position["Pre_Symbol"]]["askPrice"])
@@ -79,7 +94,7 @@ class Tasks:
 
             for order_id in childOrderStrategies.keys():
 
-                spec_order = self.tdameritrade.getSpecificOrder(order_id)
+                spec_order = self.schwab.getSpecificOrder(order_id)
 
                 new_status = spec_order["status"]
 
@@ -96,7 +111,7 @@ class Tasks:
                         "Strategy": position["Strategy"],
                         "Trader": self.user["Name"],
                         "Date": getDatetime(),
-                        "Account_ID": self.account_id
+                        "account_id": self.account_id
                     }
 
                     self.rejected.insert_one(
@@ -147,13 +162,13 @@ class Tasks:
                "Asset_Type": asset_type,
                "Position_Size": 500,
                "Position_Type": "LONG",
-               "Account_ID": self.account_id,
+               "account_id": self.account_id,
                "Strategy": strategy,
                }
 
         # IF STRATEGY NOT IN STRATEGIES COLLECTION IN MONGO, THEN ADD IT
 
-        self.strategies.update(
+        self.strategies.update_one(
             {"Strategy": strategy},
             {"$setOnInsert": obj},
             upsert=True
@@ -172,7 +187,7 @@ class Tasks:
 
                 # RUN TASKS ####################################################
                 self.checkOCOtriggers()
-                # self.updateAccountBalance()
+                self.updateAccountBalance()
 
                 ##############################################################
 

@@ -4,9 +4,11 @@ import logging
 import os
 
 from api_trader import ApiTrader
-from tdameritrade import TDAmeritrade
 from gmail import Gmail
 from mongo import MongoDB
+from dotenv import load_dotenv
+from schwabBot import Schwab
+import schwabdev
 
 from assets.pushsafer import PushNotification
 from assets.exception_handler import exception_handler
@@ -14,6 +16,7 @@ from assets.helper_functions import selectSleep
 from assets.timeformatter import Formatter
 from assets.multifilehandler import MultiFileHandler
 
+load_dotenv()
 
 class Main:
 
@@ -39,9 +42,12 @@ class Main:
 
         self.logger.setLevel(level="INFO")
 
+        if (self.logger.hasHandlers()):
+            self.logger.handlers.clear()
+
         self.logger.addHandler(file_handler)
 
-        self.logger.addHandler(ch)
+        #self.logger.addHandler(ch)
 
         # CONNECT TO MONGO
         self.mongo = MongoDB(self.logger)
@@ -83,23 +89,24 @@ class Main:
 
                         push_notification = PushNotification(
                             user["deviceID"], self.logger)
+                        
+                        client = schwabdev.Client(os.getenv('app_key'), os.getenv('app_secret'), os.getenv('callback_url'), verbose=True)
 
-                        tdameritrade = TDAmeritrade(
-                            self.mongo, user, account_id, self.logger, push_notification)
+                        schwab = Schwab(
+                            self.mongo, user, account_id, self.logger, push_notification, client)
 
-                        connected = tdameritrade.initialConnect()
+                        connected = schwab.initialConnect()
 
                         if connected:
 
-                            obj = ApiTrader(user, self.mongo, push_notification, self.logger, int(
-                                account_id), tdameritrade)
+                            obj = ApiTrader(user, self.mongo, push_notification, self.logger, account_id, schwab, client)
 
                             self.traders[account_id] = obj
 
                             time.sleep(0.1)
 
                         else:
-
+                            
                             self.not_connected.append(account_id)
 
                     self.accounts.append(account_id)
@@ -118,7 +125,6 @@ class Main:
         trade_data = self.gmail.getEmails()
 
         for api_trader in self.traders.values():
-
             api_trader.runTrader(trade_data)
 
 
