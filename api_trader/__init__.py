@@ -4,7 +4,7 @@ from threading import Thread
 from assets.exception_handler import exception_handler
 from api_trader.order_builder import OrderBuilder
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import os
 from pymongo.errors import WriteError, WriteConcernError
@@ -12,9 +12,8 @@ import traceback
 import time
 from random import randint
 import requests
-from schwabBot import Schwab
+from schwabBot import Schwab  # Assumes your updated Schwab class (with checkTokenValidity) is imported here
 import json
-
 
 THIS_FOLDER = os.path.dirname(os.path.abspath(__file__))
 path = Path(THIS_FOLDER)
@@ -55,7 +54,7 @@ class ApiTrader(Tasks, OrderBuilder):
         OrderBuilder.__init__(self)
         Tasks.__init__(self)
 
-        # If user wants to run tasks
+        # If user wants to run tasks, run in a separate thread.
         if RUN_TASKS:
             Thread(target=self.runTasks, daemon=True).start()
         else:
@@ -69,24 +68,36 @@ class ApiTrader(Tasks, OrderBuilder):
         )
 
     # -------------------------------------------
-    # New methods to refresh account summary and update balance
+    # NEW: Refresh account summary (with token check)
     # -------------------------------------------
     @exception_handler
     def refreshAccountSummary(self):
         """
-        Fetch the latest account summary from the Schwab API using Schwabdev's get_account()
+        Fetch the latest account summary from the Schwab API using the updated getAccount()
         and update self.user with the current liquidation value.
         """
-        # Use Schwabdev's get_account() method (no account_id argument is required)
-        account_summary = self.schwab.get_account()
+        # Ensure tokens are valid before making the API call.
+        if not self.schwab.checkTokenValidity():
+            self.logger.error("Token validity check failed in refreshAccountSummary.")
+            return
+
+        account_summary = self.schwab.getAccount()
+
         try:
-            # Adjust the key names based on Schwabdev's response structure.
-            liquidation_value = float(account_summary["account"]["balances"]["cashAvailableForTrading"])
+            # Adjust key names based on the actual API response structure.
+            # For example, if the response contains securitiesAccount data:
+            liquidation_value = float(account_summary["securitiesAccount"]["initialBalances"]["cashAvailableForTrading"])
             self.user["Liquidation_Value"] = liquidation_value
             self.logger.info(f"Updated liquidation value: {liquidation_value}")
         except Exception as e:
             self.logger.error("Could not retrieve liquidation value from account summary.")
-    
+            self.logger.error("Account summary response: " + json.dumps(account_summary, indent=2))
+
+
+
+    # -------------------------------------------
+    # Update account balance using the latest account summary
+    # -------------------------------------------
     @exception_handler
     def updateAccountBalance(self):
         """
@@ -101,7 +112,7 @@ class ApiTrader(Tasks, OrderBuilder):
             return
 
         self.logger.info(f"Liquidation Value: {liquidation_value}")
-        position_size_percent = 10  # Example: use 10% of the liquidation value
+        position_size_percent =100  # Example: use 10% of the liquidation value
         dynamic_position_size = int((liquidation_value * position_size_percent) / 100)
 
         update_result = self.strategies.update_many(
@@ -114,10 +125,19 @@ class ApiTrader(Tasks, OrderBuilder):
         )
 
     # -------------------------------------------
-    # STEP ONE
+    # STEP ONE: Send Order (with token check)
     # -------------------------------------------
     @exception_handler
     def sendOrder(self, trade_data, strategy_object, direction):
+        """
+        Builds and sends an order. Before sending, we check token validity so that tokens
+        are refreshed only if needed.
+        """
+        # Check token validity before placing the order.
+        if not self.schwab.checkTokenValidity():
+            self.logger.error("Token validity check failed in sendOrder. Aborting order placement.")
+            return
+
         symbol = trade_data["Symbol"]
         strategy = trade_data["Strategy"]
         side = trade_data["Side"]
@@ -127,19 +147,23 @@ class ApiTrader(Tasks, OrderBuilder):
             order, obj = self.standardOrder(trade_data, strategy_object, direction)
         elif order_type == "OCO":
             order, obj = self.OCOorder(trade_data, strategy_object, direction)
+        else:
+            self.logger.error(f"Unknown order type: {order_type}")
+            return
 
         if order is None and obj is None:
             return
 
-        # PLACE ORDER IF LIVE TRADER ################################################
+        # PLACE ORDER IF LIVE TRADER
         if self.RUN_LIVE_TRADER:
+            # Get the linked account hash.
             accountNumber = self.client.account_linked()
             accountHash = accountNumber.json()[0]['hashValue']
             resp = self.client.order_place(accountHash, order)
             status_code = resp.status_code
 
             if status_code not in [200, 201]:
-                # Try to get an error message from the response
+                # Try to extract an error message from the response.
                 try:
                     error_message = resp.json().get("error", "Unknown error")
                 except Exception:
@@ -159,10 +183,11 @@ class ApiTrader(Tasks, OrderBuilder):
                 self.rejected.insert_one(other)
                 return
 
-            # GET ORDER ID FROM RESPONSE HEADERS LOCATION
+            # GET ORDER ID FROM RESPONSE HEADERS (the new order's ID is expected in the header "Location")
             obj["Order_ID"] = int((resp.headers["Location"]).split("/")[-1].strip())
             obj["Account_Position"] = "Live"
         else:
+            # Simulate an order for paper trading.
             obj["Order_ID"] = -1 * randint(100_000_000, 999_999_999)
             obj["Account_Position"] = "Paper"
 
@@ -172,14 +197,11 @@ class ApiTrader(Tasks, OrderBuilder):
         self.logger.info(response_msg)
 
     # -------------------------------------------
-    # STEP TWO
+    # STEP TWO: Queue Order
     # -------------------------------------------
     @exception_handler
     def queueOrder(self, order):
-        """METHOD FOR QUEUEING ORDER TO QUEUE COLLECTION IN MONGODB
-        Args:
-            order (dict): ORDER DATA TO BE PLACED IN QUEUE COLLECTION
-        """
+        """Queue the order in the MongoDB queue collection."""
         self.queue.update_one(
             {"Trader": self.user["Name"], "Symbol": order["Symbol"], "Strategy": order["Strategy"]},
             {"$set": order},
@@ -187,7 +209,7 @@ class ApiTrader(Tasks, OrderBuilder):
         )
 
     # -------------------------------------------
-    # STEP THREE
+    # STEP THREE: Update Order Status (with token check)
     # -------------------------------------------
     @exception_handler
     def updateStatus(self):
@@ -196,6 +218,11 @@ class ApiTrader(Tasks, OrderBuilder):
         Based on the response, either processes filled orders or moves rejected/canceled orders
         to the corresponding collections.
         """
+        # Check token validity before updating status.
+        if not self.schwab.checkTokenValidity():
+            self.logger.error("Token validity check failed in updateStatus. Aborting status update.")
+            return
+
         queued_orders = self.queue.find({
             "Trader": self.user["Name"],
             "Order_ID": {"$ne": None},
@@ -203,7 +230,7 @@ class ApiTrader(Tasks, OrderBuilder):
         })
 
         for queue_order in queued_orders:
-            # Use Schwabdev's get_order() method instead of getSpecificOrder
+            # Use Schwabdev's get_order() method (assumed to be implemented in your Schwab class)
             spec_order = self.schwab.get_order(queue_order["Order_ID"])
 
             # ORDER ID NOT FOUND. ASSUME REMOVED OR PAPER TRADING
@@ -225,10 +252,10 @@ class ApiTrader(Tasks, OrderBuilder):
                 self.pushOrder(queue_order, custom, data_integrity)
                 continue
 
-            new_status = spec_order["status"]
+            new_status = spec_order.get("status")
             order_type = queue_order["Order_Type"]
 
-            if queue_order["Order_ID"] == spec_order["orderId"]:
+            if queue_order["Order_ID"] == spec_order.get("orderId"):
                 if new_status == "FILLED":
                     if queue_order["Order_Type"] == "OCO":
                         queue_order = {**queue_order, **self.extractOCOchildren(spec_order)}
@@ -263,7 +290,7 @@ class ApiTrader(Tasks, OrderBuilder):
                     )
 
     # -------------------------------------------
-    # STEP FOUR
+    # STEP FOUR: Push Order to Positions
     # -------------------------------------------
     @exception_handler
     def pushOrder(self, queue_order, spec_order, data_integrity="Reliable"):
@@ -389,7 +416,7 @@ class ApiTrader(Tasks, OrderBuilder):
         self.push.send(message_to_push)
 
     # -------------------------------------------
-    # RUN TRADER
+    # RUN TRADER: Main loop to process trade data (with token check)
     # -------------------------------------------
     @exception_handler
     def runTrader(self, trade_data):
@@ -398,11 +425,15 @@ class ApiTrader(Tasks, OrderBuilder):
         Args:
             trade_data (list): Contains trade data for each stock.
         """
-        # UPDATE ALL ORDER STATUS'S
+        # Check token validity at the start.
+        if not self.schwab.checkTokenValidity():
+            self.logger.error("Token validity check failed in runTrader. Aborting trader run.")
+            return
+
         self.logger.info("RUN TRADER\n", extra={'log': False})
         self.updateStatus()
 
-        # UPDATE USER ATTRIBUTE
+        # Update user info from DB
         self.user = self.mongo.users.find_one({"Name": self.user["Name"]})
 
         # FORBIDDEN SYMBOLS
